@@ -1,0 +1,309 @@
+<!--
+कक्षा 11 रसायन — त्रैमासिक (2025–26) रिक्त स्थान क्विज
+✔️ ब्लॉगर (Blogger) पोस्ट में सीधे पेस्ट करने लायक एकल HTML + CSS + JS
+✔️ यूनिट चयन → एक-एक करके प्रश्न, उत्तर बॉक्स, सही/गलत/आंशिक सही संदेश
+✔️ अंत में स्कोर, पुनः प्रयास और अन्य इकाई चुनने के बटन
+-->
+
+<div id="chem11-app">
+  <style>
+    #chem11-app{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+    .wrap{max-width:860px;margin:24px auto;padding:16px}
+    .card{background:#ffffff;border:1px solid #e6e6e6;border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.06);padding:20px}
+    .title{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .badge{background:linear-gradient(135deg,#1976d2,#0d47a1);color:#fff;border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px}
+    .sub{color:#0d47a1;font-weight:700}
+    .units{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+    .btn{border:0;border-radius:12px;padding:12px 14px;background:#0d47a1;color:#fff;font-weight:700;cursor:pointer;transition:transform .06s ease,box-shadow .2s ease}
+    .btn:hover{box-shadow:0 8px 18px rgba(13,71,161,.25)}
+    .btn:active{transform:translateY(1px)}
+    .btn.outline{background:#fff;color:#0d47a1;border:2px solid #0d47a1}
+    .muted{color:#555}
+    .qbox{margin-top:14px;background:#f7f9ff;border:1px solid #e0e7ff;padding:16px;border-radius:14px}
+    .q{font-weight:700}
+    .input{margin-top:10px;display:flex;gap:8px}
+    .input input{flex:1;padding:12px;border-radius:10px;border:1px solid #cbd5e1;font-size:16px}
+    .note{font-size:12px;color:#666;margin-top:6px}
+    .msg{margin-top:12px;padding:10px 12px;border-radius:10px;font-weight:700}
+    .ok{background:#e8f5e9;color:#1b5e20;border:1px solid #c8e6c9}
+    .bad{background:#ffebee;color:#b71c1c;border:1px solid #ffcdd2}
+    .mid{background:#fff8e1;color:#b26a00;border:1px solid #ffe0b2}
+    .progress{margin-top:14px;font-size:14px;color:#333}
+    .scorebox{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+    .brand{margin-top:16px;font-size:13px;color:#444}
+    .brand a{color:#0d47a1;text-decoration:none;font-weight:700}
+    @media (max-width:560px){.units{grid-template-columns:1fr}.title{gap:8px}}
+  </style>
+
+  <div class="wrap">
+    <div class="card" id="view-start">
+      <div class="title">
+        <span class="badge">कक्षा 11</span>
+        <div>
+          <div style="font-size:22px;font-weight:800">रसायन शास्त्र — त्रैमासिक (2025–26)</div>
+          <div class="muted">लोक शिक्षण संचालनालय, मध्य प्रदेश — प्रश्न बैंक आधारित रिक्त स्थान क्विज</div>
+        </div>
+      </div>
+      <div style="margin-top:14px" class="sub">इकाई चुनें</div>
+      <div class="units">
+        <button class="btn" data-unit="1">इकाई-1 · रसायन विज्ञान की मूलभूत अवधारणाएँ</button>
+        <button class="btn" data-unit="2">इकाई-2 · परमाणु संरचना</button>
+        <button class="btn" data-unit="3">इकाई-3 · तत्वों का वर्गीकरण व आवर्तिता</button>
+        <button class="btn" data-unit="4">इकाई-4 · रासायनिक आबंधन व आण्विक संरचना</button>
+      </div>
+
+      <div class="brand">Powered by <a href="https://mpeducationgyandeep.in" target="_blank" rel="noopener">MP EDUCATION GYAN DEEP</a></div>
+    </div>
+
+    <div class="card" id="view-quiz" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- Helpers ----------
+  const el = (sel,root=document)=>root.querySelector(sel);
+  const els = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const strip = s => (s||"")
+      .toString()
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[\u0902\u0901\u093c]/g,'') // anusvara, chandrabindu, nukta
+      .replace(/[.,;:!?()\[\]{}"'`´°]|\s+/g,' ') // punctuation
+      .trim();
+  const onlyDigitsDot = s=>strip(s).replace(/[^0-9.]/g,'');
+  function similarity(a,b){ // Jaccard over tokens fallback to Levenshtein-like ratio
+    a=strip(a); b=strip(b);
+    if(!a||!b) return 0;
+    const ta=new Set(a.split(' ')), tb=new Set(b.split(' '));
+    const inter=[...ta].filter(t=>tb.has(t)).length;
+    const union=new Set([...ta,...tb]).size;
+    const j=inter/union;
+    // quick char-level ratio
+    const minLen=Math.min(a.length,b.length); const maxLen=Math.max(a.length,b.length);
+    let same=0; for(let i=0;i<minLen;i++){ if(a[i]===b[i]) same++; }
+    const r = (same/maxLen);
+    return Math.max(j, r*0.9 + j*0.1);
+  }
+
+  // ---------- Data ----------
+  // प्रत्येक प्रश्न के लिए acceptable उत्तरों की सूची (multiple variants) दी गई है।
+  // जिन प्रश्नों में दो शब्द अपेक्षित हैं, उत्तर में दोनों शब्द आ जाएँ तो सही माना जाएगा (क्रम मायने नहीं रखेगा)।
+  const BANK = {
+    1: [
+      {q:"(1) सामान्य ताप एवं दाब पर गैस के एक मोल अणुओं का आयतन ……………. होता है।",
+       answers:["22.4 लीटर","22.4 l","22.4 litre","22.4l","22.4",
+                "22.7 लीटर","22.7 l","22.7l","22.7"] , numericOk:true},
+      {q:"(2) विलयन की सांद्रता व्यक्त करने की वह विधि जो तापमान परिवर्तन से प्रभावित होती है …………… कहलाती है।",
+       answers:["मोलरता","मोलरिटी","molarity"]},
+      {q:"(3) 'केमिस्ट्री' शब्द की उत्पत्ति ……………… शब्द से हुई जिसका अर्थ रासायनिक क्रिया होता है।",
+       answers:["केमिया","केमिया (ग्रीक)","किमीया","अल्केमी","अल-कीमिया","alkimiya","alchemy","khemia","chemeia"]},
+      {q:"(4) जब प्रेक्षित मान व वास्तविक मान में अंतर बहुत कम होता है तो इसे …………………… कहते हैं।",
+       answers:["शुद्धता","सटीकता","accuracy"]},
+      {q:"(5) किसी तत्व का वह सूक्ष्मतम कण जो रासायनिक अभिक्रिया में भाग लेता है किन्तु स्वतंत्र अवस्था में नहीं रह सकता ……………………. कहलाता है।",
+       answers:["परमाणु","atom"]}
+    ],
+    2: [
+      {q:"1. एक इलेक्ट्रॉन के लिये mₗ का मान = −2, −1, 0, +1, +2 है, तो इलेक्ट्रॉन ……………….. कक्षक में है।",
+       answers:["d","डी","d कक्षक","d-ऑर्बिटल","d orbital"]},
+      {q:"2. जिस कक्षक के लिये n = 1 एवं l = 0 होगा उसे ……………. से प्रदर्शित करेंगे।",
+       answers:["1s","1 s","के शेल s","k shell s","1s कक्षक"]},
+      {q:"3. आवृत्ति के बढ़ते क्रम में: एफ एम रेडियो < माइक्रोवेव ओवन < दृश्यमान/अवरक्त प्रकाश < …………… किरणें < कॉस्मिक किरणें।",
+       answers:["पराबैंगनी","अल्ट्रावायलेट","ultraviolet","uv"]},
+      {q:"4. यदि किसी परमाणु में n का मान 4 है तो कुल इलेक्ट्रॉनों की संख्या ........... होगी।",
+       answers:["32","२७?","32e"], numericOk:true, exactNumeric:32},
+      {q:"5. संकरण के पश्चात प्राप्त आर्बिटल की ………… एवं …………… समान होती है।",
+       answers:["ऊर्जा & आकृति","ऊर्जा & आकार","ऊर्जा & दिशा","energy & shape"], multiKey:["ऊर्जा","आकृति|आकार|दिशा|orientation|shape"]}
+    ],
+    3: [
+      {q:"1. ऑक्सीजन की परमाण्विक त्रिज्या नाइट्रोजन से ……………….. होती है।",
+       answers:["कम","छोटी","less","smaller"]},
+      {q:"2. जब किसी गैसीय परमाणु पर एक इलेक्ट्रॉन जोड़ा जाता है, तो निकलने वाली ऊर्जा को …………. कहते हैं।",
+       answers:["इलेक्ट्रॉन आपेक्षी","इलेक्ट्रॉन अभिलग्नता","इलेक्ट्रॉन आत्मीयता","electron affinity","ea"]},
+      {q:"3. Mn …………………. तत्व का उदाहरण है।",
+       answers:["संक्रमण तत्व","संक्रमण धातु","transition element","transition metal"]},
+      {q:"4. बोरॉन विकर्णतः …………………. से सम्बन्धित है।",
+       answers:["सिलिकॉन","silicon","si"]},
+      {q:"5. न्यूनतम गलनांक वाली धातु ……………….. है।",
+       answers:["पारा","मरक्युरी","mercury","hg"]},
+      {q:"6. आवर्त तालिका में अधातु ……………. ओर स्थित है।",
+       answers:["दाहिनी","दाएँ","right","right side"]}
+    ],
+    4: [
+      {q:"1. सभी रासायनिक बन्धों का स्थायित्व ………………. के मध्य आकर्षण बढ़ने से होता है।",
+       answers:["नाभिक और संयोजक इलेक्ट्रॉनों","नाभिक और इलेक्ट्रॉनों","धनायन और ऋणायन","आयनों"],
+       anyOf:true},
+      {q:"2. सहसंयोजक यौगिकों का गलनांक सामान्यत ........... होता है।",
+       answers:["कम","निम्न","low"]},
+      {q:"3. नाइट्रोजन (N₂) अणु में ………….. π-बन्ध होते हैं।",
+       answers:["2","दो"], numericOk:true, exactNumeric:2},
+      {q:"4. कार्बन मोनोक्साइड (CO) में कार्बन की सहसंयोजकता ......... है।",
+       answers:["2","दो"], numericOk:true, exactNumeric:2},
+      {q:"5. NH₃ अणु की आकृति ............. है।",
+       answers:["त्रिकोणीय पिरामिडीय","त्रिकोण पिरामिडाकार","trigonal pyramidal","pyramidal"]},
+      {q:"6. आयनिक यौगिक सामान्यतः जल में ............. होते हैं।",
+       answers:["विलेय","घुलनशील","soluble"]}
+    ]
+  };
+
+  // ---------- State ----------
+  const state = {unit:null, idx:0, score:0, total:0};
+
+  // ---------- UI ----------
+  const startView = el('#view-start');
+  const quizView = el('#view-quiz');
+
+  function showStart(){
+    quizView.style.display='none';
+    startView.style.display='block';
+  }
+
+  function startUnit(u){
+    state.unit=u; state.idx=0; state.score=0; state.total=BANK[u].length;
+    renderQuestion();
+  }
+
+  function renderQuestion(){
+    startView.style.display='none'; quizView.style.display='block';
+    const list=BANK[state.unit]; const item=list[state.idx];
+    const head = `<div class="title"><span class="badge">इकाई-${state.unit}</span>
+      <div><div style="font-size:20px;font-weight:800">${unitName(state.unit)}</div>
+      <div class="muted">प्रश्न ${state.idx+1} / ${state.total}</div></div></div>`;
+
+    const html = `
+      ${head}
+      <div class="qbox">
+        <div class="q">${item.q}</div>
+        <div class="input">
+          <input id="answer" type="text" placeholder="यहाँ उत्तर लिखें..." autocomplete="off" />
+          <button class="btn" id="submit">सबमिट</button>
+        </div>
+        <div class="note">संकेत: हिंदी/अंग्रेज़ी, अंकों (22.4 / 22.7) व समानार्थी शब्द स्वीकार्य हैं।</div>
+        <div id="feedback"></div>
+      </div>
+      <div class="progress">स्कोर: <b>${state.score}</b> / ${state.idx}</div>
+      <div class="scorebox">
+        <button class="btn outline" id="backUnits">अन्य इकाई चुनें</button>
+        <button class="btn outline" id="retryUnit">पुनः प्रयास (इकाई)</button>
+      </div>
+      <div class="brand">MP EDUCATION GYAN DEEP • <a href="https://mpeducationgyandeep.in" target="_blank" rel="noopener">Website</a></div>
+    `;
+    quizView.innerHTML=html;
+
+    el('#backUnits').onclick=showStart;
+    el('#retryUnit').onclick=()=>startUnit(state.unit);
+    el('#submit').onclick=()=>evaluateAnswer(item);
+    el('#answer').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); el('#submit').click(); } });
+    el('#answer').focus();
+  }
+
+  function evaluateAnswer(item){
+    const inp = el('#answer');
+    const userRaw = inp.value || '';
+    const user = strip(userRaw);
+
+    // Special handling for two-key answers (both words must appear in any order)
+    if(item.multiKey){
+      const groups = item.multiKey.map(g => g.split('|'));
+      const ok = groups.every(group=> group.some(w=> user.includes(strip(w))));
+      return giveFeedback(ok ? 1:0, item, userRaw);
+    }
+
+    // Numeric-centric cases
+    if(item.numericOk){
+      const num = parseFloat(onlyDigitsDot(user));
+      if(!isNaN(num)){
+        if(item.exactNumeric!=null){
+          const ok = Math.abs(num - Number(item.exactNumeric))<1e-6;
+          return giveFeedback(ok?1:0, item, userRaw, ok?null:bestAnswer(item));
+        }
+        // Accept common STP volumes 22.4 or 22.7
+        const ok = Math.abs(num-22.4)<0.05 || Math.abs(num-22.7)<0.05;
+        return giveFeedback(ok?1:0, item, userRaw, ok?null:bestAnswer(item));
+      }
+    }
+
+    // anyOf means ANY acceptable phrase indicates correct (do not enforce full match set)
+    if(item.anyOf){
+      const ok = item.answers.some(a=> similarity(user,a)>=0.85 || user.includes(strip(a)) );
+      return giveFeedback(ok?1:0, item, userRaw, ok?null:bestAnswer(item));
+    }
+
+    // Standard textual match with partial-credit
+    let isCorrect=false, isPartial=false;
+    const sims = item.answers.map(a=> similarity(user,a));
+    const top = Math.max(...sims);
+    if(top>=0.9){ isCorrect=true; }
+    else if(top>=0.6){ isPartial=true; }
+
+    giveFeedback(isCorrect?1:0, item, userRaw, isCorrect?null:bestAnswer(item), isPartial);
+  }
+
+  function bestAnswer(item){
+    // choose the most instructive/canonical looking answer
+    const pref = item.answers.find(a=> /[\u0900-\u097F]/.test(a)) || item.answers[0];
+    return pref.replace(/\s*&\s*/g,' एवं ');
+  }
+
+  function giveFeedback(point, item, userRaw, correctAns, partial=false){
+    const box = el('#feedback');
+    if(point){
+      state.score++;
+      box.innerHTML = `<div class="msg ok">✔️ सही उत्तर!</div>`;
+    }else if(partial){
+      box.innerHTML = `<div class="msg mid">ℹ️ आंशिक सही। सही उत्तर: <b>${correctAns||bestAnswer(item)}</b></div>`;
+    }else{
+      box.innerHTML = `<div class="msg bad">✘ गलत उत्तर। सही उत्तर: <b>${correctAns||bestAnswer(item)}</b></div>`;
+    }
+
+    // Next step / Finish
+    const list=BANK[state.unit];
+    state.idx++;
+    if(state.idx < list.length){
+      const nextBtn = document.createElement('button');
+      nextBtn.textContent = 'अगला प्रश्न';
+      nextBtn.className = 'btn';
+      nextBtn.style.marginTop='12px';
+      nextBtn.onclick = renderQuestion;
+      box.appendChild(nextBtn);
+    } else {
+      finishUnit();
+    }
+  }
+
+  function finishUnit(){
+    const pct = Math.round((state.score/state.total)*100);
+    quizView.innerHTML = `
+      <div class="title"><span class="badge">इकाई-${state.unit}</span>
+        <div><div style="font-size:22px;font-weight:800">${unitName(state.unit)}</div></div>
+      </div>
+      <div class="qbox">
+        <div class="q">🎉 आपने इकाई-${state.unit} पूर्ण कर ली!</div>
+        <div style="margin-top:10px">कुल स्कोर: <b>${state.score}</b> / ${state.total} (${pct}%)</div>
+      </div>
+      <div class="scorebox">
+        <button class="btn" id="retry">इसी इकाई का पुनः प्रयास</button>
+        <button class="btn outline" id="home">अन्य इकाई चुनें</button>
+      </div>
+      <div class="brand">MP EDUCATION GYAN DEEP • <a href="https://mpeducationgyandeep.in" target="_blank" rel="noopener">Website</a></div>
+    `;
+    el('#retry').onclick=()=>startUnit(state.unit);
+    el('#home').onclick=showStart;
+  }
+
+  function unitName(u){
+    switch(+u){
+      case 1: return 'रसायन विज्ञान की मूलभूत अवधारणाएँ';
+      case 2: return 'परमाणु संरचना';
+      case 3: return 'तत्वों का वर्गीकरण व आवर्तिता';
+      case 4: return 'रासायनिक आबंधन व आण्विक संरचना';
+      default: return '';
+    }
+  }
+
+  // ---------- Bind Start Buttons ----------
+  els('#view-start .btn[data-unit]').forEach(b=>{
+    b.addEventListener('click',()=> startUnit(Number(b.getAttribute('data-unit'))));
+  });
+})();
+</script>
